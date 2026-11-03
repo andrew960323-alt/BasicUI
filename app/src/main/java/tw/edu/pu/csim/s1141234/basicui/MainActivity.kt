@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role.Companion.Button
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -76,13 +79,36 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Main(modifier: Modifier = Modifier) {
-    Box() {
+    var currentVideo by remember { mutableStateOf(R.raw.love) }
+
+    Box(modifier = modifier.fillMaxSize()) {
         LazyColumnExample(modifier)
         ColumnExample(modifier)
         TextFieldExample(modifier)
         LazyRowExample(modifier)
 
-        SimpleVideoPlayer(R.raw.love)
+        // 將影片與按鈕移至上方，並加上 top padding 避免擋到上方文字，也不會影響下方的動物卡片
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .padding(top = 0.dp), // 可依實際畫面的文字多寡微調間距
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            SimpleVideoPlayer(currentVideo)
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Button(onClick = {
+                currentVideo = if (currentVideo == R.raw.love) {
+                    R.raw.handpan
+                } else {
+                    R.raw.love
+                }
+            }) {
+                Text(text = if (currentVideo == R.raw.love) "切換到手碟影片" else "切換到 Love 影片")
+            }
+        }
     }
 }
 
@@ -242,12 +268,15 @@ fun SimpleVideoPlayer(
 ) {
     val context = LocalContext.current
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            val uri = "android.resource://${context.packageName}/$videoRes"
-            setMediaItem(MediaItem.fromUri(uri))
-            prepare()
-            playWhenReady = true
-        }
+        ExoPlayer.Builder(context).build()
+    }
+
+    // 加上這段，當 videoRes 改變時才會重新載入新影片
+    LaunchedEffect(videoRes) {
+        val uri = "android.resource://${context.packageName}/$videoRes"
+        exoPlayer.setMediaItem(MediaItem.fromUri(uri))
+        exoPlayer.prepare()
+        exoPlayer.playWhenReady = true
     }
 
     DisposableEffect(Unit) {
